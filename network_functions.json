@@ -1,0 +1,119 @@
+{
+  "network_functions": [
+    {
+      "name": "socket",
+      "return_type": "int",
+      "parameters": [
+        {"type": "int", "name": "domain"},
+        {"type": "int", "name": "type"},
+        {"type": "int", "name": "protocol"}
+      ]
+    },
+    {
+      "name": "bind",
+      "return_type": "int",
+      "parameters": [
+        {"type": "int", "name": "sockfd"},
+        {"type": "const struct sockaddr *", "name": "addr"},
+        {"type": "socklen_t", "name": "addrlen"}
+      ]
+    },
+    {
+      "name": "connect",
+      "return_type": "int",
+      "parameters": [
+        {"type": "int", "name": "sockfd"},
+        {"type": "const struct sockaddr *", "name": "addr"},
+        {"type": "socklen_t", "name": "addrlen"}
+      ]
+    },
+    {
+      "name": "accept",
+      "return_type": "int",
+      "parameters": [
+        {"type": "int", "name": "sockfd"},
+        {"type": "struct sockaddr *", "name": "addr"},
+        {"type": "socklen_t *", "name": "addrlen"}
+      ]
+    },
+    {
+      "name": "accept4",
+      "return_type": "int",
+      "parameters": [
+        {"type": "int", "name": "sockfd"},
+        {"type": "struct sockaddr *", "name": "addr"},
+        {"type": "socklen_t *", "name": "addrlen"},
+        {"type": "int", "name": "flags"}
+      ]
+    },
+    {
+      "name": "send",
+      "return_type": "ssize_t",
+      "parameters": [
+        {"type": "int", "name": "sockfd"},
+        {"type": "const void *", "name": "buf"},
+        {"type": "size_t", "name": "len"},
+        {"type": "int", "name": "flags"}
+      ]
+    },
+    {
+      "name": "recv",
+      "return_type": "ssize_t",
+      "parameters": [
+        {"type": "int", "name": "sockfd"},
+        {"type": "void *", "name": "buf"},
+        {"type": "size_t", "name": "len"},
+        {"type": "int", "name": "flags"}
+      ]
+    },
+    {
+      "name": "sendto",
+      "return_type": "ssize_t",
+      "parameters": [
+        {"type": "int", "name": "sockfd"},
+        {"type": "const void *", "name": "buf"},
+        {"type": "size_t", "name": "len"},
+        {"type": "int", "name": "flags"},
+        {"type": "const struct sockaddr *", "name": "dest_addr"},
+        {"type": "socklen_t", "name": "addrlen"}
+      ]
+    },
+    {
+      "name": "recvfrom",
+      "return_type": "ssize_t",
+      "parameters": [
+        {"type": "int", "name": "sockfd"},
+        {"type": "void *", "name": "buf"},
+        {"type": "size_t", "name": "len"},
+        {"type": "int", "name": "flags"},
+        {"type": "struct sockaddr *", "name": "src_addr"},
+        {"type": "socklen_t *", "name": "addrlen"}
+      ]
+    },
+    {
+      "name": "write",
+      "return_type": "ssize_t",
+      "parameters": [
+        {"type": "int", "name": "fd"},
+        {"type": "const void *", "name": "buf"},
+        {"type": "size_t", "name": "count"}
+      ]
+    },
+    {
+      "name": "read",
+      "return_type": "ssize_t",
+      "parameters": [
+        {"type": "int", "name": "fd"},
+        {"type": "void *", "name": "buf"},
+        {"type": "size_t", "name": "count"}
+      ]
+    },
+    {
+      "name": "close",
+      "return_type": "int",
+      "parameters": [
+        {"type": "int", "name": "fd"}
+      ]
+    }
+  ]
+}
