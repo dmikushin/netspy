@@ -24,12 +24,19 @@ def generate_function_pointer_types(functions):
     return "\n".join(result)
 
 def generate_function_pointer_declarations(functions):
-    """Generate declarations for function pointers."""
+    """Generate declarations for function pointers (header)."""
     result = []
     for func in functions:
         name = func["name"]
-        result.append(f"static {name}_func_t real_{name} = nullptr;")
+        result.append(f"    static {name}_func_t real_{name};")
+    return "\n".join(result)
 
+def generate_function_pointer_definitions(functions):
+    """Generate definitions for function pointers (implementation)."""
+    result = []
+    for func in functions:
+        name = func["name"]
+        result.append(f"{name}_func_t NetworkInterceptor::real_{name} = nullptr;")
     return "\n".join(result)
 
 def generate_function_loading(functions):
@@ -293,7 +300,7 @@ def main():
         print("// Function pointer typedefs")
         print(function_pointer_types)
         print("")
-        print("// Function pointer declarations")
+        print("// Function pointer declarations (static members)")
         print(function_pointer_declarations)
         print("")
         print("// Function loading prototype")
@@ -304,11 +311,17 @@ def main():
 
     elif output_mode == "implementation":
         # For implementation file
+        function_pointer_definitions = generate_function_pointer_definitions(functions)
         function_loading = generate_function_loading(functions)
         function_interceptors = generate_function_interceptors(functions)
         interceptor_methods = generate_interceptor_methods(functions)
 
         print(f"// Generated code from {os.path.basename(json_file)}")
+        print("")
+        print('#include "generated_bindings_header.hpp"')
+        print("")
+        print("// Function pointer definitions (static members)")
+        print(function_pointer_definitions)
         print("")
         print("// Function loading implementation")
         print("void loadOriginalFunctions() {")
@@ -325,6 +338,7 @@ def main():
         # All in one file
         function_pointer_types = generate_function_pointer_types(functions)
         function_pointer_declarations = generate_function_pointer_declarations(functions)
+        function_pointer_definitions = generate_function_pointer_definitions(functions)
         function_loading = generate_function_loading(functions)
         interceptor_method_declarations = generate_interceptor_methods_declarations(functions)
         interceptor_methods = generate_interceptor_methods(functions)
@@ -335,8 +349,11 @@ def main():
         print("// Function pointer typedefs")
         print(function_pointer_types)
         print("")
-        print("// Function pointer declarations")
+        print("// Function pointer declarations (static members)")
         print(function_pointer_declarations)
+        print("")
+        print("// Function pointer definitions (static members)")
+        print(function_pointer_definitions)
         print("")
         print("// Function loading code")
         print("void loadOriginalFunctions() {")
