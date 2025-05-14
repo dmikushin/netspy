@@ -324,7 +324,7 @@ def main():
         print(function_pointer_definitions)
         print("")
         print("// Function loading implementation")
-        print("void loadOriginalFunctions() {")
+        print("void NetworkInterceptor::loadOriginalFunctions() {")
         print(function_loading)
         print("}")
         print("")
