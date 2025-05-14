@@ -1,4 +1,4 @@
-# NetSpy - Network Traffic Logger
+# NetSpy - Simple Network Traffic Logger via LD_PRELOAD
 
 NetSpy is a C++ Linux preloadable library that intercepts network-related function calls for a specific executable and logs all incoming and outgoing network traffic in PCAP format for later visualization with Wireshark.
 
