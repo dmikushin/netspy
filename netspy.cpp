@@ -106,15 +106,13 @@ void NetworkInterceptor::updateSocketInfo(int sockfd, const struct sockaddr* add
     }
 }
 
+// NOTE: Caller must hold m_socketMutex before calling this function to avoid deadlock.
 void NetworkInterceptor::getSocketAddresses(int sockfd, struct sockaddr_storage* local, struct sockaddr_storage* remote) {
     if (sockfd < 0 || sockfd >= MAX_SOCKETS)
         return;
-    
-    std::lock_guard<std::mutex> lock(m_socketMutex);
-    
+    // No locking here! Caller must hold m_socketMutex.
     if (local)
         memcpy(local, &m_socketInfo[sockfd].localAddr, sizeof(struct sockaddr_storage));
-    
     if (remote)
         memcpy(remote, &m_socketInfo[sockfd].remoteAddr, sizeof(struct sockaddr_storage));
 }
@@ -222,6 +220,7 @@ void NetworkInterceptor::logPacketToPcap(const struct sockaddr_storage* srcAddr,
     pcap_dump_flush(m_pcapDumper);
 }
 
+// NOTE: Caller must hold m_socketMutex before calling this function to avoid deadlock.
 void NetworkInterceptor::logNetworkActivity(int sockfd, const void* data, size_t dataLen, bool isOutgoing) {
     struct sockaddr_storage localAddr, remoteAddr;
     struct sockaddr_storage *srcAddr, *dstAddr;
@@ -258,10 +257,7 @@ void NetworkInterceptor::logNetworkActivity(int sockfd, const void* data, size_t
     }
     
     // Determine protocol based on socket type
-    {
-        std::lock_guard<std::mutex> lock(m_socketMutex);
-        protocol = (m_socketInfo[sockfd].type == SOCK_DGRAM) ? IPPROTO_UDP : IPPROTO_TCP;
-    }
+    protocol = (m_socketInfo[sockfd].type == SOCK_DGRAM) ? IPPROTO_UDP : IPPROTO_TCP;
     
     // Log to PCAP
     logPacketToPcap(srcAddr, dstAddr, data, dataLen, protocol);
