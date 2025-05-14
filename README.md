@@ -2,6 +2,8 @@
 
 NetSpy is a C++ Linux preloadable library that intercepts network-related function calls for a specific executable and logs all incoming and outgoing network traffic in PCAP format for later visualization with Wireshark.
 
+![](screenshot.png)
+
 ## Features
 
 - Intercepts all common network function calls: socket, bind, connect, accept, send, recv, sendto, recvfrom, etc.
@@ -52,7 +54,7 @@ LD_PRELOAD=/path/to/libnetspy.so your_program [args]
 For example, to monitor network traffic for curl:
 
 ```
-LD_PRELOAD=./libnetspy.so curl https://example.com
+LD_PRELOAD=./libnetspy.so curl google.com
 ```
 
 The library will create a PCAP file named `[executable_name]_[pid].pcap` in the current directory. For example, `curl_12345.pcap`.
