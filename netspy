@@ -1,0 +1,300 @@
+#!/usr/bin/env python3
+"""
+NetSpy - Network Traffic Logger CLI Frontend
+
+A command-line interface for the NetSpy network traffic logging library.
+This script provides a convenient way to run applications with NetSpy
+without manually setting LD_PRELOAD and environment variables.
+"""
+
+import argparse
+import os
+import sys
+import subprocess
+import shutil
+from pathlib import Path
+
+
+def find_libnetspy():
+    """Find the netspy library in common installation locations."""
+    # Try common installation paths
+    common_paths = [
+        "/usr/local/lib/libnetspy.so",
+        "/usr/lib/libnetspy.so",
+        "/usr/lib/x86_64-linux-gnu/libnetspy.so",
+        # Try relative to script location (development)
+        Path(__file__).parent / "build" / "libnetspy.so",
+        Path(__file__).parent / "libnetspy.so",
+    ]
+    
+    for path in common_paths:
+        if Path(path).exists():
+            return str(path)
+    
+    # Try to find using ldconfig
+    try:
+        result = subprocess.run(
+            ["ldconfig", "-p"], 
+            capture_output=True, 
+            text=True, 
+            check=True
+        )
+        for line in result.stdout.splitlines():
+            if "libnetspy.so" in line:
+                # Extract path from ldconfig output
+                path = line.split("=>")[-1].strip()
+                if Path(path).exists():
+                    return path
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+    
+    return None
+
+
+def create_parser():
+    """Create and configure the argument parser."""
+    parser = argparse.ArgumentParser(
+        prog="netspy",
+        description="Network Traffic Logger - Monitor network calls and capture traffic to PCAP files",
+        epilog="""
+Examples:
+  netspy curl google.com                    # Basic usage
+  netspy --filter 'socket\\(' curl google.com  # Filter only socket calls
+  netspy --output /tmp curl google.com     # Save PCAP to /tmp
+  netspy --quiet firefox                    # Run with minimal output
+  netspy --help-regex                       # Show regex syntax help
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    
+    # NetSpy-specific options
+    parser.add_argument(
+        "--filter", "-f",
+        metavar="REGEX",
+        help="Filter log output using C++11 regex pattern (NETSPY_LOG_FILTER)"
+    )
+    
+    parser.add_argument(
+        "--library", "-l",
+        metavar="PATH",
+        help="Path to libnetspy.so (auto-detected if not specified)"
+    )
+    
+    parser.add_argument(
+        "--output", "-o",
+        metavar="DIR",
+        help="Directory for PCAP output files (default: current directory)"
+    )
+    
+    parser.add_argument(
+        "--quiet", "-q",
+        action="store_true",
+        help="Disable all log output (equivalent to --filter '^$')"
+    )
+    
+    parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Enable verbose debug output"
+    )
+    
+    parser.add_argument(
+        "--dry-run", "-n",
+        action="store_true",
+        help="Show what would be executed without running it"
+    )
+    
+    parser.add_argument(
+        "--help-regex",
+        action="store_true",
+        help="Show regex syntax help and examples"
+    )
+    
+    parser.add_argument(
+        "--version",
+        action="version",
+        version="netspy 1.0.0"
+    )
+    
+    # Target command and its arguments
+    parser.add_argument(
+        "command",
+        nargs="?",
+        help="Command to execute with NetSpy"
+    )
+    
+    parser.add_argument(
+        "args",
+        nargs=argparse.REMAINDER,
+        help="Arguments for the target command"
+    )
+    
+    return parser
+
+
+def show_regex_help():
+    """Display regex syntax help and examples."""
+    help_text = """
+NetSpy Regex Filter Syntax Help
+==============================
+
+The --filter option accepts C++11 regex patterns to selectively show log messages.
+
+BASIC SYNTAX:
+  .          Match any character
+  *          Match 0 or more of the preceding
+  +          Match 1 or more of the preceding
+  ?          Match 0 or 1 of the preceding
+  ^          Match start of line
+  $          Match end of line
+  \\          Escape special characters
+
+CHARACTER CLASSES:
+  [abc]      Match any of a, b, or c
+  [^abc]     Match anything except a, b, or c
+  [a-z]      Match any lowercase letter
+  [0-9]      Match any digit
+  \\d         Match any digit (same as [0-9])
+  \\w         Match word characters [a-zA-Z0-9_]
+  \\s         Match whitespace
+
+GROUPING AND ALTERNATION:
+  (pattern)  Group patterns
+  |          Alternation (OR)
+  {n}        Match exactly n times
+  {n,m}      Match n to m times
+
+COMMON EXAMPLES:
+
+Show only socket operations:
+  --filter "socket\\("
+
+Show operations on specific ports:
+  --filter ":(80|443|8080)"
+
+Show operations with specific IP:
+  --filter "192\\.168\\.1\\."
+
+Show successful operations (return value not -1):
+  --filter "= (?!-1)\\d+$"
+
+Show TCP socket creation:
+  --filter "socket\\([^,]+, 1,"
+
+Show bind operations that failed:
+  --filter "bind.*= -1"
+
+Show connect or send operations:
+  --filter "(connect|send)\\("
+
+Disable all logging:
+  --filter "^$"
+
+Case-insensitive matching (manual):
+  --filter "[Ss][Oo][Cc][Kk][Ee][Tt]"
+
+ESCAPING SPECIAL CHARACTERS:
+When using shell commands, you may need to escape special characters:
+  netspy --filter 'socket\\(' curl google.com     # Single quotes
+  netspy --filter "socket\\\\(" curl google.com   # Double quotes (escape backslash)
+
+For more information, see the netspy(1) man page.
+"""
+    print(help_text)
+
+
+def main():
+    """Main entry point."""
+    parser = create_parser()
+    
+    # Handle special help case first
+    if "--help-regex" in sys.argv:
+        show_regex_help()
+        return 0
+    
+    args = parser.parse_args()
+    
+    # Show regex help if requested
+    if args.help_regex:
+        show_regex_help()
+        return 0
+    
+    # Validate that a command was provided
+    if not args.command:
+        parser.error("No command specified. Use --help for usage information.")
+    
+    # Find the NetSpy library
+    if args.library:
+        libnetspy_path = args.library
+        if not Path(libnetspy_path).exists():
+            print(f"Error: Specified library not found: {libnetspy_path}", file=sys.stderr)
+            return 1
+    else:
+        libnetspy_path = find_libnetspy()
+        if not libnetspy_path:
+            print("Error: Could not find libnetspy.so", file=sys.stderr)
+            print("Try specifying the path with --library or install NetSpy system-wide", file=sys.stderr)
+            return 1
+    
+    # Check if target command exists
+    if not shutil.which(args.command):
+        print(f"Error: Command not found: {args.command}", file=sys.stderr)
+        return 1
+    
+    # Prepare environment variables
+    env = os.environ.copy()
+    env["LD_PRELOAD"] = libnetspy_path
+    
+    # Handle filter options
+    if args.quiet:
+        env["NETSPY_LOG_FILTER"] = "^$"  # Empty regex - matches nothing
+    elif args.filter:
+        env["NETSPY_LOG_FILTER"] = args.filter
+    
+    # Handle output directory
+    if args.output:
+        output_dir = Path(args.output).resolve()
+        if not output_dir.exists():
+            print(f"Error: Output directory does not exist: {output_dir}", file=sys.stderr)
+            return 1
+        if not output_dir.is_dir():
+            print(f"Error: Output path is not a directory: {output_dir}", file=sys.stderr)
+            return 1
+        # Change to output directory so PCAP files are created there
+        os.chdir(output_dir)
+    
+    # Prepare command
+    command = [args.command] + args.args
+    
+    # Show what would be executed in dry-run mode
+    if args.dry_run:
+        print("Would execute:")
+        print(f"  Working directory: {os.getcwd()}")
+        print(f"  LD_PRELOAD: {libnetspy_path}")
+        if "NETSPY_LOG_FILTER" in env:
+            print(f"  NETSPY_LOG_FILTER: {env['NETSPY_LOG_FILTER']}")
+        print(f"  Command: {' '.join(command)}")
+        return 0
+    
+    # Show verbose information
+    if args.verbose:
+        print(f"NetSpy: Using library {libnetspy_path}", file=sys.stderr)
+        if "NETSPY_LOG_FILTER" in env:
+            print(f"NetSpy: Log filter: {env['NETSPY_LOG_FILTER']}", file=sys.stderr)
+        print(f"NetSpy: Working directory: {os.getcwd()}", file=sys.stderr)
+        print(f"NetSpy: Executing: {' '.join(command)}", file=sys.stderr)
+    
+    # Execute the command
+    try:
+        result = subprocess.run(command, env=env)
+        return result.returncode
+    except KeyboardInterrupt:
+        print("\\nInterrupted by user", file=sys.stderr)
+        return 130
+    except Exception as e:
+        print(f"Error executing command: {e}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

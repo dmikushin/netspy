@@ -56,6 +56,11 @@ install(TARGETS netspy
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
+# Install CLI frontend script
+install(PROGRAMS netspy
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
 # Install helper scripts
 install(FILES generate_bindings.py verify_pcap.py
     DESTINATION ${CMAKE_INSTALL_DATADIR}/netspy

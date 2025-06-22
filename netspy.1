@@ -2,6 +2,11 @@
 .SH NAME
 netspy \- Simple Network Traffic Logger via LD_PRELOAD
 .SH SYNOPSIS
+.B netspy
+.RI [ options ]
+.I command
+.RI [ arguments... ]
+.PP
 .B LD_PRELOAD=/path/to/libnetspy.so
 .I command
 .RI [ arguments... ]
@@ -14,6 +19,8 @@ This approach avoids the need for root privileges or special capabilities, as th
 The library creates a PCAP file named 
 .I executable_name_pid.pcap
 in the current directory containing all intercepted network traffic.
+
+NetSpy provides both a convenient CLI frontend script and direct LD_PRELOAD usage for maximum flexibility.
 .SH FEATURES
 .IP \(bu 2
 Intercepts all common network function calls: socket, bind, connect, accept, send, recv, sendto, recvfrom, etc.
@@ -31,13 +38,49 @@ Thread-safe with minimal performance overhead
 Automatically names output files based on executable name and process ID
 .IP \(bu 2
 Modern C++ design with proper class encapsulation
+.SH OPTIONS
+The
+.B netspy
+CLI frontend accepts the following options:
+.TP
+.BR \-f ", " \-\-filter " " \fIREGEX\fR
+Filter log output using C++11 regex pattern. Equivalent to setting NETSPY_LOG_FILTER.
+.TP
+.BR \-l ", " \-\-library " " \fIPATH\fR
+Path to libnetspy.so (auto-detected if not specified).
+.TP
+.BR \-o ", " \-\-output " " \fIDIR\fR
+Directory for PCAP output files (default: current directory).
+.TP
+.BR \-q ", " \-\-quiet
+Disable all log output (equivalent to --filter '^$').
+.TP
+.BR \-v ", " \-\-verbose
+Enable verbose debug output.
+.TP
+.BR \-n ", " \-\-dry\-run
+Show what would be executed without running it.
+.TP
+.BR \-\-help\-regex
+Show regex syntax help and examples.
+.TP
+.BR \-\-version
+Show version information.
 .SH ENVIRONMENT VARIABLES
 .TP
 .B NETSPY_LOG_FILTER
 A C++11 regex pattern used to filter log output. Only log messages matching the pattern will be displayed. If not set, all log messages are shown.
 .SH EXAMPLES
 .SS Basic Usage
-Monitor network traffic for curl:
+Monitor network traffic for curl using CLI frontend:
+.PP
+.nf
+.RS
+netspy curl google.com
+.RE
+.fi
+.PP
+Monitor network traffic using direct LD_PRELOAD:
 .PP
 .nf
 .RS
@@ -45,16 +88,16 @@ LD_PRELOAD=/usr/local/lib/libnetspy.so curl google.com
 .RE
 .fi
 .PP
-This will create a file named 
+Both commands will create a file named 
 .I curl_12345.pcap
 in the current directory.
 
-.SS Regex Filtering Examples
+.SS CLI Frontend Examples
 Show only socket() calls:
 .PP
 .nf
 .RS
-NETSPY_LOG_FILTER="socket\\(" LD_PRELOAD=/usr/local/lib/libnetspy.so curl google.com
+netspy --filter "socket\\(" curl google.com
 .RE
 .fi
 
@@ -62,18 +105,43 @@ Show operations on port 80 or 443:
 .PP
 .nf
 .RS
-NETSPY_LOG_FILTER=":(80|443)" LD_PRELOAD=/usr/local/lib/libnetspy.so your_app
+netspy --filter ":(80|443)" your_app
 .RE
 .fi
 
-Show socket or connect operations:
+Save PCAP files to /tmp directory:
 .PP
 .nf
 .RS
-NETSPY_LOG_FILTER="(socket|connect)\\(" LD_PRELOAD=/usr/local/lib/libnetspy.so your_app
+netspy --output /tmp curl google.com
 .RE
 .fi
 
+Run quietly (no log output):
+.PP
+.nf
+.RS
+netspy --quiet firefox
+.RE
+.fi
+
+Show verbose information:
+.PP
+.nf
+.RS
+netspy --verbose --filter "connect\\(" wget http://example.com
+.RE
+.fi
+
+Preview what would be executed:
+.PP
+.nf
+.RS
+netspy --dry-run --filter "socket\\(" curl google.com
+.RE
+.fi
+
+.SS Direct LD_PRELOAD Examples
 Show operations involving specific IP:
 .PP
 .nf
@@ -115,6 +183,9 @@ tshark -r executable_name_pid.pcap
 .RE
 .fi
 .SH FILES
+.TP
+.I /usr/local/bin/netspy
+CLI frontend script (default installation path)
 .TP
 .I /usr/local/lib/libnetspy.so
 The main netspy shared library (default installation path)
