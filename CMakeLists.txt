@@ -77,6 +77,11 @@ install(FILES README.md
     DESTINATION ${CMAKE_INSTALL_DOCDIR}
 )
 
+# Install man page
+install(FILES netspy.1
+    DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
+)
+
 # Build unit tests
 if(BUILD_TESTING)
     add_executable(netspy_tests tests/regex_filter_test.cpp)
