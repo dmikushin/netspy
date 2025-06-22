@@ -31,7 +31,7 @@ On Debian/Ubuntu-based systems, install dependencies with:
 sudo apt-get install g++ libpcap-dev python3
 ```
 
-## Compilation
+## Compilation and Installation
 
 Compile the library using the provided CMake build system:
 
@@ -46,8 +46,31 @@ ctest
 The build process includes the following steps:
 1. Parse network_functions.json to generate C++ bindings
 2. Generate header (generated_bindings_header.hpp) and implementation (generated_bindings_impl.hpp) files
-3. Create netspy.cpp from netspy.cpp.in template
-4. Compile the final library (libnetspy.so)
+3. Compile the final library (libnetspy.so)
+
+### System Installation
+
+To install NetSpy system-wide:
+
+```
+sudo make install
+```
+
+This will install:
+- Library: `/usr/local/lib/libnetspy.so`
+- Headers: `/usr/local/include/netspy/`
+- Helper scripts: `/usr/local/share/netspy/`
+- Documentation: `/usr/local/share/doc/netspy/`
+
+### Custom Installation Path
+
+To install to a custom location:
+
+```
+cmake -DCMAKE_INSTALL_PREFIX=/path/to/install ..
+make
+make install
+```
 
 ## Usage
 
@@ -60,7 +83,11 @@ LD_PRELOAD=/path/to/libnetspy.so your_program [args]
 For example, to monitor network traffic for curl:
 
 ```
+# Using local build
 LD_PRELOAD=./libnetspy.so curl google.com
+
+# Using installed version
+LD_PRELOAD=/usr/local/lib/libnetspy.so curl google.com
 ```
 
 The library will create a PCAP file named `[executable_name]_[pid].pcap` in the current directory. For example, `curl_12345.pcap`.

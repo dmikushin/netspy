@@ -43,3 +43,33 @@ add_test(NAME CurlIPv6Test
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/verify_pcap.py curl -6 https://google.com
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
+
+# Installation configuration
+include(GNUInstallDirs)
+
+# Install the shared library
+install(TARGETS netspy
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+# Install helper scripts
+install(FILES generate_bindings.py verify_pcap.py
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/netspy
+    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+)
+
+# Install configuration file
+install(FILES network_functions.json
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/netspy
+)
+
+# Install header files for development
+install(FILES network_interceptor.hpp
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/netspy
+)
+
+# Install documentation
+install(FILES README.md
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}
+)
