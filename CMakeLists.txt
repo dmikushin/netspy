@@ -32,6 +32,9 @@ target_link_libraries(netspy PRIVATE dl pcap Threads::Threads)
 include(CTest)
 enable_testing()
 
+# Add Google Test
+add_subdirectory(third_party/googletest EXCLUDE_FROM_ALL)
+
 # Test: IPv4 curl + pcap verify
 add_test(NAME CurlIPv4Test
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/verify_pcap.py curl -4 https://google.com
@@ -73,3 +76,21 @@ install(FILES network_interceptor.hpp
 install(FILES README.md
     DESTINATION ${CMAKE_INSTALL_DOCDIR}
 )
+
+# Build unit tests
+if(BUILD_TESTING)
+    add_executable(netspy_tests tests/regex_filter_test.cpp)
+    target_include_directories(netspy_tests PRIVATE 
+        ${CMAKE_CURRENT_SOURCE_DIR} 
+        ${CMAKE_CURRENT_BINARY_DIR}
+    )
+    target_link_libraries(netspy_tests PRIVATE 
+        gtest_main 
+        dl 
+        pcap 
+        Threads::Threads
+    )
+    
+    # Add test to CTest
+    add_test(NAME NetSpyRegexFilterTest COMMAND netspy_tests)
+endif()

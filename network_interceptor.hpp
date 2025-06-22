@@ -10,6 +10,8 @@
 #include <pcap.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <regex>
+#include <memory>
 
 // Configuration
 constexpr int MAX_SOCKETS = 4096;
@@ -46,7 +48,8 @@ public:
                         const struct sockaddr_storage* dstAddr,
                         const void* data, size_t dataLen, int protocol);
     void logNetworkActivity(int sockfd, const void* data, size_t dataLen, bool isOutgoing);
-    void debug(const char* format, ...);
+    void log(const char* format, ...);    // For logging network function calls
+    void debug(const char* format, ...);  // For NetSpy's internal debugging
     
     // Include generated function headers
     #include "generated_bindings_header.hpp"
@@ -60,10 +63,15 @@ private:
     
     std::mutex m_pcapMutex;
     std::mutex m_socketMutex;
+    std::mutex m_logMutex;
     
     pcap_dumper_t* m_pcapDumper = nullptr;
     pcap_t* m_pcapHandle = nullptr;
     
     std::array<SocketInfo, MAX_SOCKETS> m_socketInfo;
     std::string m_pcapFilename;
+    
+    // Regex filtering
+    std::unique_ptr<std::regex> m_logFilter;
+    bool m_filterInitialized = false;
 };

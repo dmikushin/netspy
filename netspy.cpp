@@ -26,6 +26,7 @@
 #include <stdarg.h>
 #include <random>
 #include <netinet/ip6.h>
+#include <regex>
 
 #include "network_interceptor.hpp"
 
@@ -289,6 +290,42 @@ void NetworkInterceptor::logNetworkActivity(int sockfd, const void* data, size_t
     logPacketToPcap(srcAddr, dstAddr, data, dataLen, protocol);
 }
 
+void NetworkInterceptor::log(const char* format, ...) {
+    // Initialize filter on first use
+    if (!m_filterInitialized) {
+        std::lock_guard<std::mutex> lock(m_logMutex);
+        if (!m_filterInitialized) {
+            const char* filterEnv = getenv("NETSPY_LOG_FILTER");
+            if (filterEnv && strlen(filterEnv) > 0) {
+                try {
+                    m_logFilter = std::make_unique<std::regex>(filterEnv);
+                } catch (const std::regex_error& e) {
+                    fprintf(stderr, "NetSpy: Invalid regex in NETSPY_LOG_FILTER: %s\n", e.what());
+                    m_logFilter = nullptr;
+                }
+            }
+            m_filterInitialized = true;
+        }
+    }
+    
+    // Format the message
+    char buffer[4096];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    
+    // Apply filter if present
+    if (m_logFilter) {
+        if (!std::regex_search(buffer, *m_logFilter)) {
+            return; // Message doesn't match filter, skip logging
+        }
+    }
+    
+    // Output the message
+    fprintf(stderr, "NetSpy: %s", buffer);
+}
+
 void NetworkInterceptor::debug(const char* format, ...) {
     if (!DEBUG_ENABLED)
         return;
@@ -296,7 +333,7 @@ void NetworkInterceptor::debug(const char* format, ...) {
     va_list args;
     va_start(args, format);
     
-    fprintf(stderr, "NetSpy: ");
+    fprintf(stderr, "NetSpy [DEBUG]: ");
     vfprintf(stderr, format, args);
     
     va_end(args);

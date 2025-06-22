@@ -11,10 +11,12 @@ This approach avoids the need for root privileges or special capabilities, as th
 - Intercepts all common network function calls: socket, bind, connect, accept, send, recv, sendto, recvfrom, etc.
 - Uses JSON for function prototype specification and automatic C++ binding generation
 - Logs network traffic in PCAP format compatible with Wireshark
+- **Regex filtering** for log output using NETSPY_LOG_FILTER environment variable
 - Supports both TCP and UDP over IPv4 and IPv6
 - Thread-safe with minimal performance overhead
 - Automatically names output files based on executable name and process ID
 - Modern C++ design with proper class encapsulation
+- Comprehensive Google Test unit tests
 
 ## Prerequisites
 
@@ -24,11 +26,12 @@ To compile and use NetSpy, you need:
 - libpcap development headers and libraries
 - Python 3 for code generation
 - Standard Linux development tools
+- wireshark-cli (for running tests with capinfos)
 
 On Debian/Ubuntu-based systems, install dependencies with:
 
 ```
-sudo apt-get install g++ libpcap-dev python3
+sudo apt-get install g++ libpcap-dev python3 wireshark-cli
 ```
 
 ## Compilation and Installation
@@ -91,6 +94,34 @@ LD_PRELOAD=/usr/local/lib/libnetspy.so curl google.com
 ```
 
 The library will create a PCAP file named `[executable_name]_[pid].pcap` in the current directory. For example, `curl_12345.pcap`.
+
+## Regex Log Filtering
+
+NetSpy supports regex-based filtering of log output using the `NETSPY_LOG_FILTER` environment variable. This allows you to selectively view only the network operations you're interested in.
+
+### Examples
+
+```bash
+# Only show socket() calls
+NETSPY_LOG_FILTER="socket\(" LD_PRELOAD=./libnetspy.so curl google.com
+
+# Only show operations on port 80 or 443
+NETSPY_LOG_FILTER=":(80|443)" LD_PRELOAD=./libnetspy.so your_app
+
+# Show socket or connect operations
+NETSPY_LOG_FILTER="(socket|connect)\(" LD_PRELOAD=./libnetspy.so your_app
+
+# Show operations involving specific IP
+NETSPY_LOG_FILTER="192\.168\.1\.100" LD_PRELOAD=./libnetspy.so your_app
+
+# Show only successful operations (return value = 0)
+NETSPY_LOG_FILTER="= 0$" LD_PRELOAD=./libnetspy.so your_app
+
+# Disable all logging
+NETSPY_LOG_FILTER="^$" LD_PRELOAD=./libnetspy.so your_app
+```
+
+The filter uses C++11 regex syntax and is applied to the complete formatted log message.
 
 ## Viewing the Captured Traffic
 
