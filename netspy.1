@@ -1,0 +1,317 @@
+.TH NETSPY 1 "December 2024" "netspy 1.1.0" "User Commands"
+.SH NAME
+netspy \- Network Traffic Logger with PCAP-over-IP streaming support
+.SH SYNOPSIS
+.B netspy
+.RI [ options ]
+.I command
+.RI [ arguments... ]
+.PP
+.B LD_PRELOAD=/path/to/libnetspy.so
+.I command
+.RI [ arguments... ]
+.SH DESCRIPTION
+.B netspy
+is a comprehensive network traffic logging tool that intercepts network-related function calls and logs all network traffic in PCAP format. It supports both traditional file-based logging and modern real-time PCAP-over-IP streaming.
+
+The tool provides a convenient CLI frontend that eliminates the need to manually manage LD_PRELOAD and environment variables, while also supporting direct library usage for advanced scenarios.
+
+This approach avoids the need for root privileges, as it only captures traffic from the specific application being monitored.
+.SH OPTIONS
+The CLI frontend supports the following options:
+.TP
+.BR \-s ", " \-\-stream " " \fIPORT\fR
+Enable PCAP-over-IP streaming on the specified port. If not specified, uses the default port 57012. This allows real-time traffic analysis without writing to disk.
+.TP
+.BR \-w ", " \-\-wireshark
+Automatically start Wireshark to capture the PCAP stream in real-time. This option implies \fB\-\-stream\fR with the default port.
+.TP
+.BR \-c ", " \-\-stream\-client
+Start the built-in Python stream client to view packets in the terminal. This option implies \fB\-\-stream\fR with the default port.
+.TP
+.BR \-l ", " \-\-library " " \fIPATH\fR
+Specify the path to libnetspy.so. If not provided, the CLI will automatically search common installation locations including system paths and development builds.
+.TP
+.BR \-o ", " \-\-output " " \fIDIR\fR
+Directory for PCAP file output (file mode only). In streaming mode, this option is ignored with a warning. Default is the current directory.
+.TP
+.BR \-q ", " \-\-quiet
+Disable debug log output from NetSpy. Network traffic is still captured normally.
+.TP
+.BR \-v ", " \-\-verbose
+Enable verbose output showing library path, working directory, and execution details.
+.TP
+.BR \-n ", " \-\-dry\-run
+Show what would be executed without actually running the command. Useful for debugging CLI options and environment setup.
+.TP
+.BR \-\-version
+Display version information and exit.
+.SH FEATURES
+.IP \(bu 2
+Real-time PCAP-over-IP streaming for live traffic analysis
+.IP \(bu 2
+Automatic Wireshark integration with one-click startup
+.IP \(bu 2
+Built-in Python stream client for terminal-based packet viewing
+.IP \(bu 2
+Intercepts all common network function calls: socket, bind, connect, accept, send, recv, sendto, recvfrom, etc.
+.IP \(bu 2
+JSON-based function specification with automatic C++ binding generation
+.IP \(bu 2
+Supports both TCP and UDP over IPv4 and IPv6
+.IP \(bu 2
+Thread-safe implementation with minimal performance overhead
+.IP \(bu 2
+Multiple concurrent clients for PCAP-over-IP streams
+.IP \(bu 2
+Comprehensive Google Test unit test suite
+.IP \(bu 2
+Modern C++ design with proper class encapsulation
+.SH ENVIRONMENT VARIABLES
+.TP
+.B NETSPY_PCAP_OVER_IP_PORT
+Enable PCAP-over-IP streaming mode on the specified port. When set, NetSpy will stream PCAP data over TCP instead of writing to a file. Used internally by the CLI frontend.
+.SH EXAMPLES
+.SS CLI Frontend Usage (Recommended)
+Basic file-based logging:
+.PP
+.nf
+.RS
+netspy curl google.com
+.RE
+.fi
+
+Stream to Wireshark in real-time:
+.PP
+.nf
+.RS
+netspy --wireshark curl google.com
+.RE
+.fi
+
+Use the built-in Python stream viewer:
+.PP
+.nf
+.RS
+netspy --stream-client wget http://example.com
+.RE
+.fi
+
+Stream to a custom port:
+.PP
+.nf
+.RS
+netspy --stream 8080 curl google.com
+.RE
+.fi
+
+Save PCAP files to a specific directory:
+.PP
+.nf
+.RS
+netspy --output /tmp firefox
+.RE
+.fi
+
+Preview what would be executed:
+.PP
+.nf
+.RS
+netspy --dry-run --wireshark curl google.com
+.RE
+.fi
+
+Quiet mode with minimal output:
+.PP
+.nf
+.RS
+netspy --quiet --output /var/log curl google.com
+.RE
+.fi
+
+.SS Direct Library Usage
+Traditional LD_PRELOAD approach:
+.PP
+.nf
+.RS
+LD_PRELOAD=/usr/local/lib/libnetspy.so curl google.com
+.RE
+.fi
+
+Enable PCAP-over-IP streaming:
+.PP
+.nf
+.RS
+NETSPY_PCAP_OVER_IP_PORT=57012 LD_PRELOAD=/usr/local/lib/libnetspy.so curl google.com
+.RE
+.fi
+
+.SS PCAP-over-IP Client Examples
+Connect Wireshark to NetSpy stream:
+.PP
+.nf
+.RS
+wireshark -k -i TCP@127.0.0.1:57012
+.RE
+.fi
+
+Use Python stream client directly:
+.PP
+.nf
+.RS
+python3 /usr/local/share/netspy/examples/pcap_stream_client.py
+.RE
+.fi
+
+Advanced filtering with Python:
+.PP
+.nf
+.RS
+python3 /usr/local/share/netspy/examples/traffic_filter.py --filter "tcp and port 80" --stats
+.RE
+.fi
+
+.SS Remote Monitoring
+Monitor application on remote host:
+.PP
+.nf
+.RS
+# On target machine:
+netspy --stream 57012 your_application
+
+# On analysis machine:
+wireshark -k -i TCP@target-host:57012
+.RE
+.fi
+
+.SH VIEWING CAPTURED TRAFFIC
+.SS PCAP Files
+Open generated PCAP files with Wireshark:
+.PP
+.nf
+.RS
+wireshark executable_name_pid.pcap
+.RE
+.fi
+
+Or use command-line tools:
+.PP
+.nf
+.RS
+tshark -r executable_name_pid.pcap
+tcpdump -r executable_name_pid.pcap
+.RE
+.fi
+
+.SS Real-time Streams
+The PCAP-over-IP feature allows real-time analysis without intermediate file storage:
+.IP \(bu 2
+Connect multiple clients to the same stream
+.IP \(bu 2
+Use standard PCAP analysis tools
+.IP \(bu 2
+Apply filters and analysis in real-time
+.IP \(bu 2
+Remote monitoring capabilities
+
+.SH FILES
+.TP
+.I /usr/local/bin/netspy
+CLI frontend script (default installation path)
+.TP
+.I /usr/local/lib/libnetspy.so
+The main netspy shared library (default installation path)
+.TP
+.I /usr/local/share/netspy/examples/
+Python client examples for PCAP-over-IP streams
+.TP
+.I /usr/local/share/netspy/network_functions.json
+JSON configuration file defining intercepted network functions
+.TP
+.I /usr/local/share/netspy/generate_bindings.py
+Code generation script for creating C++ bindings
+.TP
+.I /usr/local/include/netspy/network_interceptor.hpp
+Development header file
+.TP
+.I executable_name_pid.pcap
+Generated PCAP file containing captured network traffic (file mode only)
+.SH REQUIREMENTS
+.IP \(bu 2
+Linux operating system with LD_PRELOAD support
+.IP \(bu 2
+libpcap library for PCAP file generation and streaming
+.IP \(bu 2
+Python 3 for CLI frontend and stream clients
+.IP \(bu 2
+Target application must use standard libc network functions
+.IP \(bu 2
+Network connectivity for PCAP-over-IP streaming (if used)
+.SH LIMITATIONS
+.IP \(bu 2
+Limited to TCP and UDP protocols
+.IP \(bu 2
+Cannot intercept statically linked applications
+.IP \(bu 2
+Only captures traffic from intercepted function calls, not raw network interfaces
+.IP \(bu 2
+File descriptors below 4096 are assumed to be sockets
+.IP \(bu 2
+PCAP-over-IP requires available network ports
+.SH DEBUGGING
+Debug output can be controlled with the \fB\-\-verbose\fR and \fB\-\-quiet\fR options. Debug messages are prefixed with 
+.B "NetSpy:"
+and provide information about library initialization, socket operations, and streaming status.
+
+Use \fB\-\-dry\-run\fR to preview command execution without actually running the target application.
+.SH EXIT STATUS
+The CLI frontend exits with the same status as the monitored application. NetSpy errors are logged to stderr but do not affect the target program's execution unless the library fails to load.
+.SH SECURITY CONSIDERATIONS
+.IP \(bu 2
+NetSpy requires no special privileges and runs with the same permissions as the target application
+.IP \(bu 2
+PCAP files and streams may contain sensitive network data - handle appropriately
+.IP \(bu 2
+PCAP-over-IP streams are unencrypted - use secure networks or tunneling for sensitive data
+.IP \(bu 2
+Debug output may leak information about network operations to stderr
+.IP \(bu 2
+Only monitor applications you have permission to trace
+.IP \(bu 2
+PCAP-over-IP servers bind to all interfaces - consider firewall restrictions
+.SH TROUBLESHOOTING
+.SS Library Not Found
+If the CLI cannot find libnetspy.so:
+.IP \(bu 2
+Install NetSpy system-wide with \fBmake install\fR
+.IP \(bu 2
+Use \fB\-\-library\fR to specify the path manually
+.IP \(bu 2
+Ensure the library is in system library paths
+.SS PCAP-over-IP Connection Issues
+.IP \(bu 2
+Check that the specified port is not in use
+.IP \(bu 2
+Verify firewall settings allow connections
+.IP \(bu 2
+Ensure the target application generates network traffic
+.SS Wireshark Integration Problems
+.IP \(bu 2
+Verify Wireshark is installed and in PATH
+.IP \(bu 2
+Check that TCP@ interface support is available in your Wireshark version
+.IP \(bu 2
+Try manual connection: \fBwireshark -k -i TCP@127.0.0.1:57012\fR
+.SH SEE ALSO
+.BR wireshark (1),
+.BR tshark (1),
+.BR tcpdump (1),
+.BR strace (1),
+.BR ld.so (8),
+.BR pcap (3)
+.SH BUGS
+Report bugs to: https://github.com/dmikushin/netspy/issues
+.SH AUTHOR
+Written by Dmitry Mikushin <dmitry@kernelgen.org>
+.SH COPYRIGHT
+This is free software; see the source for copying conditions. There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
