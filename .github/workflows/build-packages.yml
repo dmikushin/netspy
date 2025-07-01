@@ -46,7 +46,6 @@ jobs:
           libpcap-dev \
           python3 \
           python3-dev \
-          libgtest-dev \
           pkg-config \
           lintian \
           fakeroot \
