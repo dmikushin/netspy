@@ -233,6 +233,10 @@ def main():
             # Change to output directory so PCAP files are created there
             os.chdir(output_dir)
     
+    # Pass quiet flag to library
+    if args.quiet:
+        env["NETSPY_QUIET"] = "1"
+    
     # Prepare command
     command = [args.command] + args.args
     
@@ -277,7 +281,7 @@ def main():
             if viewer_started:
                 print("NetSpy: Viewer started - traffic will appear when command runs", file=sys.stderr)
         else:
-            print(f"NetSpy: Logging to PCAP file in {os.getcwd()}", file=sys.stderr)
+            pass  # Filename logging moved to library where actual PID is known
     
     # Execute the command
     try:

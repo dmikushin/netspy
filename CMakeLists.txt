@@ -3,6 +3,9 @@ project(netspy LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 
+# Debug option
+option(DEBUG_ENABLED "Enable debug output" OFF)
+
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 find_package(Threads REQUIRED)
 
@@ -27,6 +30,13 @@ add_library(netspy SHARED netspy.cpp network_interceptor.hpp
     ${CMAKE_CURRENT_BINARY_DIR}/generated_bindings_impl.hpp)
 target_include_directories(netspy PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(netspy PRIVATE dl pcap Threads::Threads)
+
+# Configure debug option
+if(DEBUG_ENABLED)
+    target_compile_definitions(netspy PRIVATE DEBUG_ENABLED=1)
+else()
+    target_compile_definitions(netspy PRIVATE DEBUG_ENABLED=0)
+endif()
 
 # Enable testing
 include(CTest)

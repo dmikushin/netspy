@@ -51,6 +51,9 @@ void NetworkInterceptor::initialize() {
     // Initialize socket tracking
     m_socketInfo = {};
     
+    // Check quiet mode
+    m_quietMode = (getenv("NETSPY_QUIET") != nullptr);
+    
     // Check for PCAP-over-IP environment variable
     const char* pcapOverIPPort = getenv("NETSPY_PCAP_OVER_IP_PORT");
     if (pcapOverIPPort) {
@@ -95,6 +98,11 @@ void NetworkInterceptor::initPcapFile() {
     }
     
     debug("Network traffic logging initialized. Output: %s\n", m_pcapFilename.c_str());
+    
+    // Print filename info if not in quiet mode
+    if (!m_quietMode) {
+        fprintf(stderr, "NetSpy: Logging to PCAP file %s\n", m_pcapFilename.c_str());
+    }
 }
 
 void NetworkInterceptor::initPcapOverIP() {

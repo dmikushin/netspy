@@ -16,7 +16,6 @@
 // Configuration
 constexpr int MAX_SOCKETS = 4096;
 constexpr int MAX_PACKET_SIZE = 65535;
-constexpr bool DEBUG_ENABLED = true;
 constexpr int DEFAULT_PCAP_OVER_IP_PORT = 57012;
 
 // Socket tracking information
@@ -75,6 +74,7 @@ private:
     
     std::array<SocketInfo, MAX_SOCKETS> m_socketInfo;
     std::string m_pcapFilename;
+    bool m_quietMode = false;
     
     // PCAP-over-IP support
     bool m_usePcapOverIP = false;
