@@ -77,6 +77,20 @@ install(TARGETS netspy
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
+# Install CLI frontend script
+install(PROGRAMS netspy
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+# Install examples
+install(DIRECTORY examples/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/netspy/examples
+    FILES_MATCHING PATTERN "*.py" PATTERN "*.sh"
+    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+                GROUP_READ GROUP_EXECUTE
+                WORLD_READ WORLD_EXECUTE
+)
+
 # Install configuration file
 install(FILES network_functions.json
     DESTINATION ${CMAKE_INSTALL_DATADIR}/netspy

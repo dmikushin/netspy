@@ -76,15 +76,37 @@ make install
 
 ## Usage
 
-To use NetSpy with an application, set the `LD_PRELOAD` environment variable to point to the library:
+NetSpy provides both a convenient CLI frontend and direct LD_PRELOAD usage.
 
-```
-LD_PRELOAD=/path/to/libnetspy.so your_program [args]
+### CLI Frontend (Recommended)
+
+The `netspy` command provides an easy-to-use interface:
+
+```bash
+# Basic usage - saves to PCAP file
+netspy curl google.com
+
+# Stream to Wireshark in real-time
+netspy --wireshark curl google.com
+
+# Stream to custom port
+netspy --stream 8080 curl google.com
+
+# Use Python stream viewer
+netspy --stream-client curl google.com
+
+# Save to specific directory
+netspy --output /tmp curl google.com
+
+# Quiet mode (minimal output)
+netspy --quiet firefox
 ```
 
-For example, to monitor network traffic for curl:
+### Direct LD_PRELOAD Usage
 
-```
+For advanced users or integration into scripts:
+
+```bash
 # Using local build
 LD_PRELOAD=./libnetspy.so curl google.com
 
@@ -100,7 +122,20 @@ NetSpy supports real-time PCAP streaming over TCP, allowing you to analyze netwo
 
 ### Enabling PCAP-over-IP
 
-Set the `NETSPY_PCAP_OVER_IP_PORT` environment variable to enable streaming mode:
+#### Using CLI Frontend (Recommended)
+
+```bash
+# Stream to default port 57012 with automatic Wireshark
+netspy --wireshark curl google.com
+
+# Stream to custom port
+netspy --stream 8080 curl google.com
+
+# Use built-in Python stream client
+netspy --stream-client curl google.com
+```
+
+#### Using Direct Environment Variables
 
 ```bash
 # Stream to default port 57012
@@ -112,9 +147,10 @@ NETSPY_PCAP_OVER_IP_PORT=8080 LD_PRELOAD=./libnetspy.so your_application
 
 ### Connecting with Wireshark
 
-Connect Wireshark directly to the PCAP stream:
-
 ```bash
+# Automatic (CLI frontend - recommended)
+netspy --wireshark curl google.com
+
 # Using the included helper script
 ./examples/wireshark_example.sh curl google.com
 
@@ -127,7 +163,10 @@ wireshark -k -i TCP@127.0.0.1:57012
 NetSpy includes Python examples for custom traffic analysis:
 
 ```bash
-# Basic packet viewer
+# Built-in stream client (via CLI)
+netspy --stream-client curl google.com
+
+# Direct Python client usage
 python3 examples/pcap_stream_client.py
 
 # Advanced filtering and analysis
