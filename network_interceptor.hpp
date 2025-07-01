@@ -36,6 +36,7 @@ public:
     
     // Helper methods
     void updateSocketInfo(int sockfd, const struct sockaddr* addr, bool isLocal);
+    // NOTE: Caller must hold m_socketMutex before calling this function to avoid deadlock.
     void getSocketAddresses(int sockfd, struct sockaddr_storage* local, struct sockaddr_storage* remote);
     int generatePacket(unsigned char* buffer, size_t bufferSize, 
                      const struct sockaddr_storage* srcAddr, 
