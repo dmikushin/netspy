@@ -75,9 +75,18 @@ void NetworkInterceptor::initPcapFile() {
     char pcap_filename[256];
     char errbuf[PCAP_ERRBUF_SIZE];
     
-    // Create PCAP filename based on executable name and PID
-    snprintf(pcap_filename, sizeof(pcap_filename), "%s_%d.pcap", 
-             program_invocation_short_name, getpid());
+    // Check for custom filename
+    const char* customFilename = getenv("NETSPY_FILENAME");
+    if (customFilename && strlen(customFilename) > 0) {
+        // Use custom filename (add .pcap extension if not present)
+        snprintf(pcap_filename, sizeof(pcap_filename), "%s%s", 
+                 customFilename,
+                 strstr(customFilename, ".pcap") ? "" : ".pcap");
+    } else {
+        // Create PCAP filename based on executable name and PID
+        snprintf(pcap_filename, sizeof(pcap_filename), "%s_%d.pcap", 
+                 program_invocation_short_name, getpid());
+    }
     
     m_pcapFilename = pcap_filename;
     

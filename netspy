@@ -102,6 +102,12 @@ Examples:
     )
     
     parser.add_argument(
+        "--filename", "-f",
+        metavar="NAME",
+        help="Custom filename for PCAP output (without .pcap extension)"
+    )
+    
+    parser.add_argument(
         "--quiet", "-q",
         action="store_true",
         help="Disable debug log output"
@@ -236,6 +242,10 @@ def main():
     # Pass quiet flag to library
     if args.quiet:
         env["NETSPY_QUIET"] = "1"
+    
+    # Pass custom filename if specified
+    if args.filename:
+        env["NETSPY_FILENAME"] = args.filename
     
     # Prepare command
     command = [args.command] + args.args

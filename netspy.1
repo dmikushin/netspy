@@ -35,6 +35,9 @@ Specify the path to libnetspy.so. If not provided, the CLI will automatically se
 .BR \-o ", " \-\-output " " \fIDIR\fR
 Directory for PCAP file output (file mode only). In streaming mode, this option is ignored with a warning. Default is the current directory.
 .TP
+.BR \-f ", " \-\-filename " " \fINAME\fR
+Specify a custom filename for the PCAP output file (without .pcap extension). By default, NetSpy uses the format "executable_PID.pcap". This option is useful for organizing captures or creating predictable filenames in scripts.
+.TP
 .BR \-q ", " \-\-quiet
 Disable debug log output from NetSpy. Network traffic is still captured normally.
 .TP
@@ -71,6 +74,9 @@ Modern C++ design with proper class encapsulation
 .TP
 .B NETSPY_PCAP_OVER_IP_PORT
 Enable PCAP-over-IP streaming mode on the specified port. When set, NetSpy will stream PCAP data over TCP instead of writing to a file. Used internally by the CLI frontend.
+.TP
+.B NETSPY_FILENAME
+Specify a custom filename for the PCAP output file. The .pcap extension will be added automatically if not present. Used internally by the CLI frontend when --filename is specified.
 .SH EXAMPLES
 .SS CLI Frontend Usage (Recommended)
 Basic file-based logging:
@@ -110,6 +116,15 @@ Save PCAP files to a specific directory:
 .nf
 .RS
 netspy --output /tmp firefox
+.RE
+.fi
+
+Use a custom filename for the PCAP file:
+.PP
+.nf
+.RS
+netspy --filename demo_capture curl https://httpbin.org/get
+# Creates demo_capture.pcap instead of curl_12345.pcap
 .RE
 .fi
 
