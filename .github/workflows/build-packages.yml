@@ -1,0 +1,164 @@
+name: Build Debian Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  build-deb:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-22.04
+          - ubuntu-24.04
+        arch:
+          - amd64
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+    
+    - name: Initialize and update submodules
+      run: |
+        git submodule update --init --recursive
+    
+    - name: Set up build environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          debhelper \
+          devscripts \
+          cmake \
+          libpcap-dev \
+          python3 \
+          python3-dev \
+          libgtest-dev \
+          pkg-config \
+          lintian \
+          fakeroot \
+          rsync
+    
+    - name: Get version from tag
+      id: get_version
+      run: |
+        if [[ $GITHUB_REF == refs/tags/v* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/v}
+        else
+          VERSION="1.1.0-$(git rev-parse --short HEAD)"
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+    
+    - name: Update package version
+      run: |
+        sed -i "s/1\.0\.0-1/${{ steps.get_version.outputs.version }}-1/g" debian/changelog
+    
+    - name: Build packages
+      run: |
+        ./build-deb.sh --no-test all
+    
+    - name: Run package tests
+      run: |
+        # Test package contents
+        dpkg-deb -c dist/netspy_*_${{ matrix.arch }}.deb
+        
+        # Check package info
+        dpkg-deb -I dist/netspy_*_${{ matrix.arch }}.deb
+    
+    - name: Upload packages as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: netspy-packages-${{ matrix.os }}-${{ matrix.arch }}
+        path: |
+          dist/*.deb
+          dist/*.dsc
+          dist/*.tar.xz
+          dist/*.buildinfo
+          dist/*.changes
+        retention-days: 30
+    
+    - name: Create release assets
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        # Rename packages for release
+        mkdir -p release-assets
+        for file in dist/*.deb; do
+          if [[ -f "$file" ]]; then
+            basename=$(basename "$file")
+            newname="${basename/_${{ matrix.arch }}.deb/_${{ matrix.os }}-${{ matrix.arch }}.deb}"
+            cp "$file" "release-assets/$newname"
+          fi
+        done
+        
+        # Copy other files
+        cp dist/*.tar.xz release-assets/ 2>/dev/null || true
+        cp dist/*.dsc release-assets/ 2>/dev/null || true
+    
+    - name: Upload to release
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        # Check if release exists, create if not
+        if ! gh release view v${{ steps.get_version.outputs.version }} >/dev/null 2>&1; then
+          gh release create v${{ steps.get_version.outputs.version }} \
+            --title "NetSpy v${{ steps.get_version.outputs.version }}" \
+            --generate-notes
+        fi
+        
+        # Upload release assets
+        gh release upload v${{ steps.get_version.outputs.version }} release-assets/* --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  test-installation:
+    needs: build-deb
+    strategy:
+      matrix:
+        os:
+          - ubuntu-22.04
+          - ubuntu-24.04
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Download packages
+      uses: actions/download-artifact@v4
+      with:
+        name: netspy-packages-${{ matrix.os }}-amd64
+        path: packages/
+    
+    - name: Install and test package
+      run: |
+        # Install package
+        sudo dpkg -i packages/netspy_*.deb || true
+        sudo apt-get install -f -y
+        
+        # Test CLI
+        netspy --version
+        netspy --help
+        
+        # Test man page
+        man netspy | head -20
+        
+        # Test library exists
+        ls -la /usr/lib/libnetspy.so
+        
+        # Test examples exist
+        ls -la /usr/share/netspy/examples/
+        
+        # Test basic functionality with a simple command
+        echo "Testing basic functionality..."
+        netspy --dry-run echo "test"

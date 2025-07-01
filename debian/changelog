@@ -1,0 +1,19 @@
+netspy (1.0.0-1) unstable; urgency=low
+
+  * Initial release with PCAP-over-IP streaming support
+  * Add real-time PCAP streaming over TCP (port 57012)
+  * Implement Python CLI frontend with comprehensive options
+  * Add automatic Wireshark integration (--wireshark option)
+  * Include Python stream clients with scapy support
+  * Add comprehensive Google Test unit test suite
+  * Support multiple concurrent PCAP stream clients
+  * Add comprehensive man page documentation
+  * Include examples for traffic filtering and analysis
+  * Thread-safe implementation with minimal performance overhead
+  * Basic network traffic logging via LD_PRELOAD
+  * PCAP file generation compatible with Wireshark
+  * IPv4 and IPv6 support for TCP/UDP protocols
+  * JSON-based function specification
+  * CMake build system with installation support
+
+ -- Dmitry Mikushin <dmitry@kernelgen.org>  Mon, 30 Dec 2024 19:00:00 +0000

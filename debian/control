@@ -1,0 +1,37 @@
+Source: netspy
+Section: net
+Priority: optional
+Maintainer: Dmitry Mikushin <dmitry@kernelgen.org>
+Build-Depends: debhelper (>= 10),
+               cmake (>= 3.10),
+               libpcap-dev,
+               python3,
+               googletest | libgtest-dev
+Standards-Version: 4.5.1
+Homepage: https://github.com/dmikushin/netspy
+Vcs-Git: https://github.com/dmikushin/netspy.git
+Vcs-Browser: https://github.com/dmikushin/netspy
+
+Package: netspy
+Architecture: any
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         libpcap0.8,
+         python3
+Recommends: wireshark
+Suggests: python3-scapy
+Description: Network Traffic Logger with PCAP-over-IP streaming
+ NetSpy is a network traffic logging tool that intercepts network-related
+ function calls via LD_PRELOAD and logs all network traffic in PCAP format.
+ .
+ Features:
+  - Real-time PCAP-over-IP streaming for live traffic analysis
+  - Automatic Wireshark integration
+  - No root privileges required
+  - Supports TCP/UDP over IPv4/IPv6
+  - Python CLI frontend for easy usage
+  - Multiple concurrent PCAP stream clients
+  - Thread-safe implementation with minimal overhead
+ .
+ This package includes the shared library, CLI frontend, Python examples,
+ and comprehensive documentation.

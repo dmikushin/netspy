@@ -1,0 +1,26 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic
+export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
+
+%:
+	dh $@ --buildsystem=cmake
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DBUILD_TESTING=ON
+
+override_dh_auto_test:
+	# Skip tests during packaging as they require network access
+	# Tests are run in CI during development
+	@echo "Skipping tests during packaging"
+
+override_dh_install:
+	# CMake already installs files directly to debian/netspy
+	# Just ensure correct permissions
+	chmod +x debian/netspy/usr/bin/netspy
+	# Ensure example scripts are executable
+	find debian/netspy/usr/share/netspy/examples -name "*.py" -exec chmod +x {} \;
+	find debian/netspy/usr/share/netspy/examples -name "*.sh" -exec chmod +x {} \;
