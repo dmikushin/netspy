@@ -26,6 +26,9 @@
 #include <stdarg.h>
 #include <random>
 #include <netinet/ip6.h>
+#include <algorithm>
+#include <pthread.h>
+#include <fcntl.h>
 
 #include "network_interceptor.hpp"
 
@@ -45,11 +48,29 @@ NetworkInterceptor::~NetworkInterceptor() {
 }
 
 void NetworkInterceptor::initialize() {
-    char pcap_filename[256];
-    char errbuf[PCAP_ERRBUF_SIZE];
-    
     // Initialize socket tracking
     m_socketInfo = {};
+    
+    // Check for PCAP-over-IP environment variable
+    const char* pcapOverIPPort = getenv("NETSPY_PCAP_OVER_IP_PORT");
+    if (pcapOverIPPort) {
+        int port = atoi(pcapOverIPPort);
+        if (port <= 0) {
+            port = DEFAULT_PCAP_OVER_IP_PORT;
+        }
+        m_usePcapOverIP = true;
+        initPcapOverIP();
+    } else {
+        initPcapFile();
+    }
+    
+    // Load original functions
+    loadOriginalFunctions();
+}
+
+void NetworkInterceptor::initPcapFile() {
+    char pcap_filename[256];
+    char errbuf[PCAP_ERRBUF_SIZE];
     
     // Create PCAP filename based on executable name and PID
     snprintf(pcap_filename, sizeof(pcap_filename), "%s_%d.pcap", 
@@ -74,12 +95,180 @@ void NetworkInterceptor::initialize() {
     }
     
     debug("Network traffic logging initialized. Output: %s\n", m_pcapFilename.c_str());
+}
+
+void NetworkInterceptor::initPcapOverIP() {
+    char errbuf[PCAP_ERRBUF_SIZE];
     
-    // Load original functions
-    loadOriginalFunctions();
+    // Initialize pcap handle for packet generation
+    m_pcapHandle = pcap_open_dead(DLT_RAW, MAX_PACKET_SIZE);
+    if (!m_pcapHandle) {
+        fprintf(stderr, "NetSpy: Failed to initialize pcap: %s\n", errbuf);
+        return;
+    }
+    
+    // Get port from environment or use default
+    int port = DEFAULT_PCAP_OVER_IP_PORT;
+    const char* portStr = getenv("NETSPY_PCAP_OVER_IP_PORT");
+    if (portStr) {
+        int envPort = atoi(portStr);
+        if (envPort > 0 && envPort < 65536) {
+            port = envPort;
+        }
+    }
+    
+    // Create server socket
+    m_pcapServerSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (m_pcapServerSocket < 0) {
+        fprintf(stderr, "NetSpy: Failed to create PCAP-over-IP server socket: %s\n", strerror(errno));
+        return;
+    }
+    
+    // Allow socket reuse
+    int opt = 1;
+    if (setsockopt(m_pcapServerSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+        fprintf(stderr, "NetSpy: Failed to set socket options: %s\n", strerror(errno));
+        close(m_pcapServerSocket);
+        m_pcapServerSocket = -1;
+        return;
+    }
+    
+    // Bind to port
+    struct sockaddr_in serverAddr = {};
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_port = htons(port);
+    
+    if (bind(m_pcapServerSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+        fprintf(stderr, "NetSpy: Failed to bind PCAP-over-IP server to port %d: %s\n", port, strerror(errno));
+        close(m_pcapServerSocket);
+        m_pcapServerSocket = -1;
+        return;
+    }
+    
+    // Listen for connections
+    if (listen(m_pcapServerSocket, 5) < 0) {
+        fprintf(stderr, "NetSpy: Failed to listen on PCAP-over-IP server: %s\n", strerror(errno));
+        close(m_pcapServerSocket);
+        m_pcapServerSocket = -1;
+        return;
+    }
+    
+    // Start server thread
+    if (pthread_create(&m_serverThread, nullptr, pcapServerThread, this) != 0) {
+        fprintf(stderr, "NetSpy: Failed to create PCAP-over-IP server thread: %s\n", strerror(errno));
+        close(m_pcapServerSocket);
+        m_pcapServerSocket = -1;
+        return;
+    }
+    
+    debug("PCAP-over-IP server listening on port %d\n", port);
+}
+
+void* NetworkInterceptor::pcapServerThread(void* arg) {
+    NetworkInterceptor* self = static_cast<NetworkInterceptor*>(arg);
+    
+    // Set socket to non-blocking for periodic checks
+    int flags = fcntl(self->m_pcapServerSocket, F_GETFL, 0);
+    fcntl(self->m_pcapServerSocket, F_SETFL, flags | O_NONBLOCK);
+    
+    while (self->m_pcapServerSocket >= 0) {
+        struct sockaddr_in clientAddr;
+        socklen_t clientLen = sizeof(clientAddr);
+        
+        int clientSocket = accept(self->m_pcapServerSocket, (struct sockaddr*)&clientAddr, &clientLen);
+        if (clientSocket < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // No pending connections, sleep briefly and check again
+                usleep(100000);  // 100ms
+                continue;
+            } else if (errno == EINTR || errno == EBADF) {
+                // Socket closed or interrupted, exit gracefully
+                break;
+            } else {
+                self->debug("Failed to accept PCAP-over-IP client: %s\n", strerror(errno));
+                usleep(100000);  // 100ms
+                continue;
+            }
+        }
+        
+        self->debug("PCAP-over-IP client connected from %s:%d\n", 
+                    inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
+        
+        // Add client to list
+        {
+            std::lock_guard<std::mutex> lock(self->m_clientMutex);
+            self->m_clientSockets.push_back(clientSocket);
+        }
+        
+        // Send PCAP file header to new client
+        struct pcap_file_header header;
+        header.magic = 0xa1b2c3d4;
+        header.version_major = 2;
+        header.version_minor = 4;
+        header.thiszone = 0;
+        header.sigfigs = 0;
+        header.snaplen = MAX_PACKET_SIZE;
+        header.linktype = DLT_RAW;
+        
+        if (send(clientSocket, &header, sizeof(header), MSG_NOSIGNAL) < 0) {
+            self->debug("Failed to send PCAP header to client: %s\n", strerror(errno));
+            close(clientSocket);
+            std::lock_guard<std::mutex> lock(self->m_clientMutex);
+            self->m_clientSockets.erase(
+                std::remove(self->m_clientSockets.begin(), self->m_clientSockets.end(), clientSocket),
+                self->m_clientSockets.end());
+        }
+    }
+    
+    return nullptr;
+}
+
+void NetworkInterceptor::sendPcapPacket(const struct pcap_pkthdr* header, const unsigned char* packet) {
+    std::lock_guard<std::mutex> lock(m_clientMutex);
+    
+    // Send to all connected clients
+    auto it = m_clientSockets.begin();
+    while (it != m_clientSockets.end()) {
+        int clientSocket = *it;
+        
+        // Send packet header
+        if (send(clientSocket, header, sizeof(*header), MSG_NOSIGNAL) < 0 ||
+            send(clientSocket, packet, header->caplen, MSG_NOSIGNAL) < 0) {
+            debug("Failed to send packet to PCAP-over-IP client: %s\n", strerror(errno));
+            close(clientSocket);
+            it = m_clientSockets.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 void NetworkInterceptor::cleanup() {
+    if (m_usePcapOverIP) {
+        // Close all client connections first
+        {
+            std::lock_guard<std::mutex> lock(m_clientMutex);
+            for (int clientSocket : m_clientSockets) {
+                close(clientSocket);
+            }
+            m_clientSockets.clear();
+        }
+        
+        // Close server socket to interrupt accept()
+        if (m_pcapServerSocket >= 0) {
+            int serverSocket = m_pcapServerSocket;
+            m_pcapServerSocket = -1;  // Signal thread to exit
+            close(serverSocket);
+        }
+        
+        // Give thread time to exit gracefully
+        usleep(500000);  // 500ms
+        
+        // Join the thread - it should exit quickly now that socket is closed
+        pthread_join(m_serverThread, nullptr);
+    }
+    
     if (m_pcapDumper) {
         pcap_dump_close(m_pcapDumper);
         m_pcapDumper = nullptr;
@@ -225,7 +414,7 @@ void NetworkInterceptor::logPacketToPcap(const struct sockaddr_storage* srcAddr,
     unsigned char packetBuffer[MAX_PACKET_SIZE];
     int packetLen;
     
-    if (!m_pcapDumper)
+    if (!m_pcapHandle)
         return;
     
     // Generate a pseudo packet
@@ -240,10 +429,15 @@ void NetworkInterceptor::logPacketToPcap(const struct sockaddr_storage* srcAddr,
     pcapHdr.caplen = packetLen;
     pcapHdr.len = packetLen;
     
-    // Write to PCAP file
-    std::lock_guard<std::mutex> lock(m_pcapMutex);
-    pcap_dump((u_char*)m_pcapDumper, &pcapHdr, packetBuffer);
-    pcap_dump_flush(m_pcapDumper);
+    if (m_usePcapOverIP) {
+        // Send to connected clients
+        sendPcapPacket(&pcapHdr, packetBuffer);
+    } else if (m_pcapDumper) {
+        // Write to PCAP file
+        std::lock_guard<std::mutex> lock(m_pcapMutex);
+        pcap_dump((u_char*)m_pcapDumper, &pcapHdr, packetBuffer);
+        pcap_dump_flush(m_pcapDumper);
+    }
 }
 
 // NOTE: Caller must hold m_socketMutex before calling this function to avoid deadlock.

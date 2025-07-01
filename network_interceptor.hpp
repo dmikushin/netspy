@@ -7,14 +7,17 @@
 #include <mutex>
 #include <array>
 #include <string>
+#include <vector>
 #include <pcap.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <pthread.h>
 
 // Configuration
 constexpr int MAX_SOCKETS = 4096;
 constexpr int MAX_PACKET_SIZE = 65535;
 constexpr bool DEBUG_ENABLED = true;
+constexpr int DEFAULT_PCAP_OVER_IP_PORT = 57012;
 
 // Socket tracking information
 struct SocketInfo {
@@ -58,12 +61,24 @@ private:
     NetworkInterceptor(const NetworkInterceptor&) = delete;
     NetworkInterceptor& operator=(const NetworkInterceptor&) = delete;
     
+    void initPcapFile();
+    void initPcapOverIP();
+    void sendPcapPacket(const struct pcap_pkthdr* header, const unsigned char* packet);
+    static void* pcapServerThread(void* arg);
+    
     std::mutex m_pcapMutex;
     std::mutex m_socketMutex;
+    std::mutex m_clientMutex;
     
     pcap_dumper_t* m_pcapDumper = nullptr;
     pcap_t* m_pcapHandle = nullptr;
     
     std::array<SocketInfo, MAX_SOCKETS> m_socketInfo;
     std::string m_pcapFilename;
+    
+    // PCAP-over-IP support
+    bool m_usePcapOverIP = false;
+    int m_pcapServerSocket = -1;
+    std::vector<int> m_clientSockets;
+    pthread_t m_serverThread;
 };

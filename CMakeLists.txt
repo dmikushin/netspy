@@ -32,6 +32,30 @@ target_link_libraries(netspy PRIVATE dl pcap Threads::Threads)
 include(CTest)
 enable_testing()
 
+# Add Google Test
+add_subdirectory(ThirdParty/googletest EXCLUDE_FROM_ALL)
+
+# Create test executable
+add_executable(netspy_tests
+    tests/pcap_over_ip_test.cpp
+)
+
+target_link_libraries(netspy_tests
+    gtest
+    gtest_main
+    dl
+    pthread
+    pcap
+)
+
+target_include_directories(netspy_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ThirdParty/googletest/googletest/include
+)
+
+# Add Google Test cases
+add_test(NAME PcapOverIPTests COMMAND netspy_tests)
+
 # Test: IPv4 curl + pcap verify
 add_test(NAME CurlIPv4Test
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/verify_pcap.py curl -4 https://google.com

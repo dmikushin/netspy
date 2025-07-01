@@ -10,11 +10,13 @@ This approach avoids the need for root privileges or special capabilities, as th
 
 - Intercepts all common network function calls: socket, bind, connect, accept, send, recv, sendto, recvfrom, etc.
 - Uses JSON for function prototype specification and automatic C++ binding generation
+- **PCAP-over-IP streaming** for real-time network traffic analysis
 - Logs network traffic in PCAP format compatible with Wireshark
 - Supports both TCP and UDP over IPv4 and IPv6
 - Thread-safe with minimal performance overhead
 - Automatically names output files based on executable name and process ID
 - Modern C++ design with proper class encapsulation
+- Google Test unit tests with comprehensive coverage
 
 ## Prerequisites
 
@@ -90,15 +92,75 @@ LD_PRELOAD=./libnetspy.so curl google.com
 LD_PRELOAD=/usr/local/lib/libnetspy.so curl google.com
 ```
 
-The library will create a PCAP file named `[executable_name]_[pid].pcap` in the current directory. For example, `curl_12345.pcap`.
+By default, the library creates a PCAP file named `[executable_name]_[pid].pcap` in the current directory. For example, `curl_12345.pcap`.
+
+## PCAP-over-IP Real-time Streaming
+
+NetSpy supports real-time PCAP streaming over TCP, allowing you to analyze network traffic as it happens without writing to disk.
+
+### Enabling PCAP-over-IP
+
+Set the `NETSPY_PCAP_OVER_IP_PORT` environment variable to enable streaming mode:
+
+```bash
+# Stream to default port 57012
+NETSPY_PCAP_OVER_IP_PORT=57012 LD_PRELOAD=./libnetspy.so curl google.com
+
+# Stream to custom port
+NETSPY_PCAP_OVER_IP_PORT=8080 LD_PRELOAD=./libnetspy.so your_application
+```
+
+### Connecting with Wireshark
+
+Connect Wireshark directly to the PCAP stream:
+
+```bash
+# Using the included helper script
+./examples/wireshark_example.sh curl google.com
+
+# Manual Wireshark connection
+wireshark -k -i TCP@127.0.0.1:57012
+```
+
+### Python Client Examples
+
+NetSpy includes Python examples for custom traffic analysis:
+
+```bash
+# Basic packet viewer
+python3 examples/pcap_stream_client.py
+
+# Advanced filtering and analysis
+python3 examples/traffic_filter.py --filter "tcp and port 80" --stats
+
+# Save filtered packets to file
+python3 examples/traffic_filter.py --filter "https" --save https_traffic.pcap
+```
+
+### Remote Monitoring
+
+PCAP-over-IP enables remote network monitoring:
+
+```bash
+# On the target machine
+NETSPY_PCAP_OVER_IP_PORT=57012 LD_PRELOAD=./libnetspy.so your_app
+
+# On the analysis machine
+python3 examples/pcap_stream_client.py target-host.example.com 57012
+wireshark -k -i TCP@target-host.example.com:57012
+```
 
 ## Viewing the Captured Traffic
 
-You can open the generated PCAP file with Wireshark:
+### PCAP Files
+You can open generated PCAP files with Wireshark:
 
-```
+```bash
 wireshark [executable_name]_[pid].pcap
 ```
+
+### Real-time Stream
+For real-time analysis, use PCAP-over-IP streaming as described above.
 
 ## Modifying Function List
 
